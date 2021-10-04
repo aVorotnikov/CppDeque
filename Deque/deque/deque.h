@@ -153,6 +153,22 @@ public:
   }
 
   /**
+   * Copy with another allocator.
+   * @param[in] lhs instance to copy
+   * @param[in] strategy allocation strategy for deque
+   */
+  void Copy(deque_t const &lhs, std::shared_ptr<alloc_strategy_t> const &strategy) {
+    FreeList(begin, allocator);
+    allocator = single_allocator_t<node_t>(strategy);
+    if (lhs.begin == nullptr) {
+      begin = nullptr;
+      end = nullptr;
+      return;
+    }
+    CopyList(lhs.begin);
+  }
+
+  /**
    * Move operator =.
    * @param[in] rhs rValue instance to copy
    */

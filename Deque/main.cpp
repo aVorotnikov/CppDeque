@@ -48,9 +48,13 @@ int main(void) {
   deq.PushFront(1);
   deq1 = deq;
   std::cout << "8) " << deq1 << std::endl;
-  // copy operator with new allocator strategy demo
+  // copy constructor with new allocator strategy demo
   deque_t<int> deq2(deq, std::make_shared<stupid_strategy_t>());
   std::cout << "9) " << deq2 << std::endl;
+  // copy function with new allocator strategy demo
+  deq.PopBack();
+  deq2.Copy(deq, std::make_shared<stupid_strategy_t>());
+  std::cout << "10) " << deq2 << std::endl;
 
   // move constructor demo
   auto deqGenetor = [](int x) -> deque_t<int> {
@@ -59,17 +63,17 @@ int main(void) {
     return deq;
   };
   auto deq3{deqGenetor(0)};
-  std::cout << "10) " << deq3 << std::endl;
+  std::cout << "11) " << deq3 << std::endl;
   // move operator demo
   deq3 = deqGenetor(1);
-  std::cout << "11) " << deq3 << std::endl;
+  std::cout << "12) " << deq3 << std::endl;
 
   // clear demo
   deq1.Clear();
-  std::cout << "12) " << deq1 << std::endl;
+  std::cout << "13) " << deq1 << std::endl;
 
   // is empty demo
-  std::cout << "13) " << std::boolalpha << deq3.IsEmpty() << ", " << deq1.IsEmpty() << std::endl;
+  std::cout << "14) " << std::boolalpha << deq3.IsEmpty() << ", " << deq1.IsEmpty() << std::endl;
 
   return 0;
 }
