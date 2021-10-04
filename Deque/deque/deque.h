@@ -80,6 +80,11 @@ private:
    * @param[in] beginToCopy list to copy begin
    */
   void CopyList(node_t const *beginToCopy) {
+    if (beginToCopy == nullptr) {
+      begin = nullptr;
+      end = nullptr;
+      return;
+    }
     begin = allocator.alloc(*beginToCopy);
     node_t *prev = begin;
     for (node_t const *node = beginToCopy->next; node != nullptr; node = node->next, prev = prev->next) {
@@ -119,11 +124,6 @@ public:
    */
   deque_t(deque_t const &lhs, std::shared_ptr<alloc_strategy_t> const &strategy) :
     allocator(strategy) {
-    if (lhs.begin == nullptr) {
-      begin = nullptr;
-      end = nullptr;
-      return;
-    }
     CopyList(lhs.begin);
   }
 
@@ -144,11 +144,6 @@ public:
   void operator=(deque_t const &lhs) {
     FreeList(begin, allocator);
     allocator = lhs.allocator;
-    if (lhs.begin == nullptr) {
-      begin = nullptr;
-      end = nullptr;
-      return;
-    }
     CopyList(lhs.begin);
   }
 
@@ -160,11 +155,6 @@ public:
   void Copy(deque_t const &lhs, std::shared_ptr<alloc_strategy_t> const &strategy) {
     FreeList(begin, allocator);
     allocator = single_allocator_t<node_t>(strategy);
-    if (lhs.begin == nullptr) {
-      begin = nullptr;
-      end = nullptr;
-      return;
-    }
     CopyList(lhs.begin);
   }
 
