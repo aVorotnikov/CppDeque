@@ -23,13 +23,14 @@
  */
 int main(void) {
   deque_t<int> deq(std::make_shared<stupid_strategy_t>());
+  int i4 = 4, i1 = 1;
   // push demo
   std::cout << "1) " << deq << std::endl;
-  deq.PushBack(3);
-  deq.PushBack(4);
+  deq.PushBack(3);   // rvalue
+  deq.PushBack(i4);  // lvalue
   std::cout << "2) " << deq << std::endl;
-  deq.PushFront(2);
-  deq.PushFront(1);
+  deq.PushFront(2);   // rvalue
+  deq.PushFront(i1);  // lvalue
 
   // change strategy demo
   std::cout << "3) " << deq << std::endl;
@@ -56,6 +57,11 @@ int main(void) {
   deq2.Copy(deq, std::make_shared<stupid_strategy_t>());
   std::cout << "10) " << deq2 << std::endl;
 
+  // iterator demo
+  for (auto &i : deq2)
+    i++;
+  std::cout << "11) " << deq2 << std::endl;
+
   // move constructor demo
   auto deqGenetor = [](int x) -> deque_t<int> {
     deque_t<int> deq(std::make_shared<stupid_strategy_t>());
@@ -63,17 +69,17 @@ int main(void) {
     return deq;
   };
   auto deq3{deqGenetor(0)};
-  std::cout << "11) " << deq3 << std::endl;
+  std::cout << "12) " << deq3 << std::endl;
   // move operator demo
   deq3 = deqGenetor(1);
-  std::cout << "12) " << deq3 << std::endl;
+  std::cout << "13) " << deq3 << std::endl;
 
   // clear demo
   deq1.Clear();
-  std::cout << "13) " << deq1 << std::endl;
+  std::cout << "14) " << deq1 << std::endl;
 
   // is empty demo
-  std::cout << "14) " << std::boolalpha << deq3.IsEmpty() << ", " << deq1.IsEmpty() << std::endl;
+  std::cout << "15) " << std::boolalpha << deq3.IsEmpty() << ", " << deq1.IsEmpty() << std::endl;
 
   return 0;
 }

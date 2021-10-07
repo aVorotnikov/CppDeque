@@ -55,10 +55,20 @@ private:
     node_t(T const &newData, node_t *newPrev, node_t *newNext) :
       data(newData), prev(newPrev), next(newNext) {
     }
+
+    /**
+     * Constructor by params. Data with move.
+     * @param[in] newData node data
+     * @param[in] newPrev previous node
+     * @param[in] newNext next node
+     */
+    node_t(T &&newData, node_t *newPrev, node_t *newNext) :
+      data(std::move(newData)), prev(newPrev), next(newNext) {
+    }
   };
   node_t
-    *begin,                              ///< list beginning
-    *end;                                ///< list end
+    *start,                              ///< list beginning
+    *tail;                               ///< list end
 
   single_allocator_t<node_t> allocator;  ///< allocator for nodes
 
@@ -81,19 +91,103 @@ private:
    */
   void CopyList(node_t const *beginToCopy) {
     if (beginToCopy == nullptr) {
-      begin = nullptr;
-      end = nullptr;
+      start = nullptr;
+      tail = nullptr;
       return;
     }
-    begin = allocator.alloc(*beginToCopy);
-    node_t *prev = begin;
+    start = allocator.alloc(*beginToCopy);
+    node_t *prev = start;
     for (node_t const *node = beginToCopy->next; node != nullptr; node = node->next, prev = prev->next) {
       node_t *tmp = allocator.alloc(node->data, prev, nullptr);
       prev->next = tmp;
     }
-    end = prev;
+    tail = prev;
     prev->next = nullptr;
   }
+
+  /**
+   * @brief Deque iterator class.
+   *
+   * Class for deque iteration with data modification ability.
+   */
+  class iterator_t {
+  private:
+    node_t *node;  ///< current node
+  public:
+    /**
+     * Constructor by node.
+     * @param[in] n node for iterator
+     */
+    iterator_t(node_t *n) : node(n) {
+    }
+
+    /**
+     * Deleted default constructor.
+     */
+    iterator_t(void) = delete;
+
+    /**
+     * Default copy constructor.
+     * @param[in] lhs iterator to copy
+     */
+    iterator_t(iterator_t const &lhs) = default;
+
+    /**
+     * Default move constructor.
+     * @param[in] rhs iterator to move
+     */
+    iterator_t(iterator_t &&rhs) = default;
+
+    /**
+     * Equality operator.
+     * @param[in] lhs iterator to compare
+     */
+    bool operator==(iterator_t const &lhs) {
+      return node == lhs.node;
+    }
+
+    /**
+     * Inequality operator.
+     * @param[in] lhs iterator to compare
+     */
+    bool operator!=(iterator_t const &lhs) {
+      return node != lhs.node;
+    }
+
+    /**
+     * Operator * to provide pointer semantics.
+     * @return data pointer
+     */
+    T &operator*(void) {
+      if (node == nullptr)
+        throw std::exception("Try to use end iterator");
+      return node->data;
+    }
+
+    /**
+     * Prefix increment.
+     * @return current iterator value
+     */
+    iterator_t &operator++(void) {
+      if (node == nullptr)
+        throw std::exception("Try to use end iterator");
+      node = node->next;
+      return *this;
+    }
+
+    /**
+     * Postfix increment.
+     * @param[in] unusedInteger unused argument
+     * @return previous iterator value
+     */
+    iterator_t &operator++(int unusedInteger) {
+      if (node == nullptr)
+        throw std::exception("Try to use end iterator");
+      iterator_t tmp{*this};
+      node = node->next;
+      return tmp;
+    }
+  };
 
 public:
   /**
@@ -101,7 +195,7 @@ public:
    * @param[in] strategy allocation strategy
    */
   deque_t(std::shared_ptr<alloc_strategy_t> const &strategy) :
-    begin(nullptr), end(nullptr), allocator(strategy) {
+    start(nullptr), tail(nullptr), allocator(strategy) {
   }
 
   /**
@@ -109,12 +203,12 @@ public:
    * @param[in] lhs instance to copy
    */
   deque_t(deque_t const &lhs) : allocator(lhs.allocator) {
-    if (lhs.begin == nullptr) {
-      begin = nullptr;
-      end = nullptr;
+    if (lhs.start == nullptr) {
+      start = nullptr;
+      tail = nullptr;
       return;
     }
-    CopyList(lhs.begin);
+    CopyList(lhs.start);
   }
 
   /**
@@ -124,7 +218,7 @@ public:
    */
   deque_t(deque_t const &lhs, std::shared_ptr<alloc_strategy_t> const &strategy) :
     allocator(strategy) {
-    CopyList(lhs.begin);
+    CopyList(lhs.start);
   }
 
   /**
@@ -132,9 +226,9 @@ public:
    * @param[in] rhs instance to copy
    */
   deque_t(deque_t &&rhs) :
-    begin(rhs.begin), end(rhs.end), allocator(std::move(rhs.allocator)) {
-    rhs.begin = nullptr;
-    rhs.end = nullptr;
+    start(rhs.start), tail(rhs.tail), allocator(std::move(rhs.allocator)) {
+    rhs.start = nullptr;
+    rhs.tail = nullptr;
   }
 
   /**
@@ -142,9 +236,9 @@ public:
    * @param[in] lhs instance to copy
    */
   void operator=(deque_t const &lhs) {
-    FreeList(begin, allocator);
+    FreeList(start, allocator);
     allocator = lhs.allocator;
-    CopyList(lhs.begin);
+    CopyList(lhs.start);
   }
 
   /**
@@ -153,9 +247,9 @@ public:
    * @param[in] strategy allocation strategy for deque
    */
   void Copy(deque_t const &lhs, std::shared_ptr<alloc_strategy_t> const &strategy) {
-    FreeList(begin, allocator);
+    FreeList(start, allocator);
     allocator = single_allocator_t<node_t>(strategy);
-    CopyList(lhs.begin);
+    CopyList(lhs.start);
   }
 
   /**
@@ -163,19 +257,19 @@ public:
    * @param[in] rhs rValue instance to copy
    */
   void operator=(deque_t &&rhs) {
-    FreeList(begin, allocator);
+    FreeList(start, allocator);
     allocator = std::move(rhs.allocator);
-    begin = rhs.begin;
-    end = rhs.end;
-    rhs.end = nullptr;
-    rhs.begin = nullptr;
+    start = rhs.start;
+    tail = rhs.tail;
+    rhs.tail = nullptr;
+    rhs.start = nullptr;
   }
 
   /**
    * Destructor.
    */
   ~deque_t(void) {
-    FreeList(begin, allocator);
+    FreeList(start, allocator);
   }
 
   /**
@@ -183,11 +277,23 @@ public:
    * @param[in] data data to push
    */
   void PushBack(T const &data) {
-    end = allocator.alloc(data, end, nullptr);
-    if (begin == nullptr)
-      begin = end;
+    tail = allocator.alloc(data, tail, nullptr);
+    if (start == nullptr)
+      start = tail;
     else
-      end->prev->next = end;
+      tail->prev->next = tail;
+  }
+
+  /**
+   * Push element back with move function.
+   * @param[in] data data to push
+   */
+  void PushBack(T &&data) {
+    tail = allocator.alloc(std::move(data), tail, nullptr);
+    if (start == nullptr)
+      start = tail;
+    else
+      tail->prev->next = tail;
   }
 
   /**
@@ -195,11 +301,23 @@ public:
    * @param[in] data data to push
    */
   void PushFront(T const &data) {
-    begin = allocator.alloc(data, nullptr, begin);
-    if (end == nullptr)
-      end = begin;
+    start = allocator.alloc(data, nullptr, start);
+    if (tail == nullptr)
+      tail = start;
     else
-      begin->next->prev = begin;
+      start->next->prev = start;
+  }
+
+  /**
+   * Push element front with move function.
+   * @param[in] data data to push
+   */
+  void PushFront(T &&data) {
+    start = allocator.alloc(std::move(data), nullptr, start);
+    if (tail == nullptr)
+      tail = start;
+    else
+      start->next->prev = start;
   }
 
   /**
@@ -207,16 +325,16 @@ public:
    * @return poped element
    */
   T PopBack(void) {
-    if (end == nullptr)
+    if (tail == nullptr)
       throw std::exception("Empty list");
-    T data = std::move(end->data);
-    node_t *tmp = end->prev;
-    allocator.dealloc(end);
-    end = tmp;
+    T data = std::move(tail->data);
+    node_t *tmp = tail->prev;
+    allocator.dealloc(tail);
+    tail = tmp;
     if (tmp == nullptr)
-      begin = nullptr;
+      start = nullptr;
     else
-      end->next = nullptr;
+      tail->next = nullptr;
     return data;
   }
 
@@ -225,16 +343,16 @@ public:
    * @return poped element
    */
   T PopFront(void) {
-    if (begin == nullptr)
+    if (start == nullptr)
       throw std::exception("Empty list");
-    T data = std::move(begin->data);
-    node_t *tmp = begin->next;
-    allocator.dealloc(begin);
-    begin = tmp;
+    T data = std::move(start->data);
+    node_t *tmp = start->next;
+    allocator.dealloc(start);
+    start = tmp;
     if (tmp == nullptr)
-      end = nullptr;
+      tail = nullptr;
     else
-      begin->prev = nullptr;
+      start->prev = nullptr;
     return data;
   }
 
@@ -243,16 +361,16 @@ public:
    * @return true if deque is empty, false - otherwise
    */
   bool IsEmpty(void) const {
-    return begin == nullptr;
+    return start == nullptr;
   }
 
   /**
    * Clear deque function.
    */
   void Clear(void) {
-    FreeList(begin, allocator);
-    begin = nullptr;
-    end = nullptr;
+    FreeList(start, allocator);
+    start = nullptr;
+    tail = nullptr;
   }
 
   /**
@@ -262,11 +380,39 @@ public:
   void ChangeAllocator(std::shared_ptr<alloc_strategy_t> const &strategy) {
     auto prevAllocator = allocator;
     node_t
-      *prevBegin = begin,
-      *prevEnd = end;
+      *prevBegin = start,
+      *prevEnd = tail;
     allocator = single_allocator_t<node_t>(strategy);
-    CopyList(begin);
-    FreeList(begin, prevAllocator);
+    if (start == nullptr) {
+      start = nullptr;
+      tail = nullptr;
+      return;
+    }
+    start = allocator.alloc(std::move(*start));
+    node_t *prev = start;
+    for (node_t const *node = start->next; node != nullptr; node = node->next, prev = prev->next) {
+      node_t *tmp = allocator.alloc(std::move(node->data), prev, nullptr);
+      prev->next = tmp;
+    }
+    tail = prev;
+    prev->next = nullptr;
+    FreeList(start, prevAllocator);
+  }
+
+  /**
+   * Get begin iterator function.
+   * @return begin iterator
+   */
+  iterator_t begin(void) {
+    return iterator_t(start);
+  }
+
+  /**
+   * Get end iterator function.
+   * @return end iterator
+   */
+  iterator_t end(void) {
+    return iterator_t(nullptr);
   }
 };
 
@@ -279,7 +425,7 @@ public:
  */
 template <typename T>
 std::ostream &operator<<(std::ostream &stream, deque_t<T> const &deq) {
-  for (deque_t<T>::node_t *node = deq.begin; node != nullptr; node = node->next)
+  for (deque_t<T>::node_t *node = deq.start; node != nullptr; node = node->next)
     std::cout << node->data << ", ";
   return stream;
 }
